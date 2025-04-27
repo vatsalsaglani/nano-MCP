@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCP Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              dark: {
+                100: "#1a2b3c",
+                200: "#162231",
+                300: "#121a24",
+                400: "#0d141b",
+                900: "#070d13",
+              },
+              accent: {
+                100: "#8ab4f8",
+                200: "#669df6",
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        background-color: #0d141b;
+        color: #e2e8f0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+
+      .chat-container {
+        max-width: 90%;
+        margin: 0 auto;
+        height: 100vh;
+      }
+
+      .message-bubble {
+        max-width: 85%;
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        overflow-wrap: break-word;
+        overflow: hidden;
+        width: auto;
+      }
+
+      .message-user {
+        background-color: #2563eb;
+        color: white;
+        margin-left: auto;
+        border-radius: 1rem 1rem 0 1rem;
+      }
+
+      .message-assistant {
+        background-color: #162231;
+        color: #e2e8f0;
+        margin-right: auto;
+        border-radius: 1rem 1rem 1rem 0;
+      }
+
+      .message-system {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        text-align: center;
+        margin: 0.5rem 0;
+        font-style: italic;
+      }
+
+      .chat-input {
+        background-color: #162231;
+        border: 1px solid #334155;
+        color: #e2e8f0;
+        border-radius: 9999px;
+        padding: 0.75rem 1.25rem;
+        margin-right: 0.5rem;
+        width: 100%;
+      }
+
+      .chat-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+
+      .send-button {
+        background-color: #2563eb;
+        color: white;
+        border-radius: 9999px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+      }
+
+      .send-button:disabled {
+        background-color: #475569;
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      /* Custom scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #162231;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 3px;
+      }
+
+      /* Tool accordion */
+      .tool-accordion {
+        margin-top: 0.5rem;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .tool-header {
+        background-color: #1e293b;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 0.5rem;
+      }
+
+      .tool-header:hover {
+        background-color: #263548;
+      }
+
+      .tool-content {
+        background-color: #0f172a;
+        padding: 0.5rem;
+        border: 1px solid #1e293b;
+        border-top: none;
+        font-size: 0.875rem;
+      }
+
+      /* Code blocks */
+      pre {
+        background-color: #0d1117;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        overflow-x: auto;
+        max-height: 400px;
+        font-size: 0.875rem;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+      }
+
+      /* Status indicators */
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+      }
+
+      .status-connected {
+        background-color: #10b981;
+      }
+
+      .status-disconnected {
+        background-color: #ef4444;
+      }
+
+      .status-processing {
+        background-color: #f59e0b;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* Markdown content - improved accessibility */
+      .markdown-content {
+        line-height: 1.6;
+      }
+
+      .markdown-content h1,
+      .markdown-content h2,
+      .markdown-content h3 {
+        font-weight: 600;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        color: #f8fafc;
+      }
+
+      .markdown-content h1 {
+        font-size: 1.5rem;
+      }
+      .markdown-content h2 {
+        font-size: 1.25rem;
+      }
+      .markdown-content h3 {
+        font-size: 1.125rem;
+      }
+
+      .markdown-content p {
+        margin-bottom: 0.75rem;
+      }
+
+      .markdown-content ul,
+      .markdown-content ol {
+        padding-left: 1.5rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .markdown-content ul {
+        list-style-type: disc;
+      }
+      .markdown-content ol {
+        list-style-type: decimal;
+      }
+
+      .markdown-content a {
+        color: #60a5fa;
+        text-decoration: underline;
+      }
+
+      .markdown-content blockquote {
+        border-left: 3px solid #475569;
+        padding-left: 1rem;
+        font-style: italic;
+        margin: 0.75rem 0;
+        color: #cbd5e1;
+      }
+
+      .markdown-content code:not(pre code) {
+        background-color: #1e293b;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+      }
+
+      /* Tool display improvements */
+      .tool-accordion {
+        margin-top: 0.5rem;
+        border-radius: 0.5rem;
+        overflow: hidden;
+      }
+
+      .tool-accordion summary {
+        background-color: #1e293b;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 0.5rem;
+      }
+
+      .tool-accordion summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .tool-accordion[open] summary {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .tool-accordion-content {
+        padding: 0;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      .tool-accordion-content pre {
+        max-width: 100%;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .tool-section {
+        margin: 0.5rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 0.5rem;
+      }
+
+      .system-badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        background-color: rgba(148, 163, 184, 0.2);
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem;
+      }
+
+      [x-cloak] {
+        display: none !important;
+      }
+
+      /* Settings panel styles */
+      .settings-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 100vh;
+        background-color: #1e293b;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        z-index: 50;
+        overflow-y: auto;
+      }
+
+      .settings-panel.open {
+        transform: translateX(0);
+      }
+
+      .settings-toggle {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 51;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        background-color: #1e293b;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .settings-container {
+        padding: 1rem;
+      }
+
+      .settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #334155;
+      }
+
+      .settings-section {
+        margin-bottom: 1.5rem;
+      }
+
+      .settings-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .settings-input {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 0.375rem;
+        color: #e2e8f0;
+        font-size: 0.875rem;
+      }
+
+      .settings-select {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 0.375rem;
+        color: #e2e8f0;
+        font-size: 0.875rem;
+      }
+
+      .settings-input:focus,
+      .settings-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+
+      .settings-button {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: #2563eb;
+        border: none;
+        border-radius: 0.375rem;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .settings-button:hover {
+        background-color: #1d4ed8;
+      }
+
+      .settings-button.secondary {
+        background-color: #475569;
+      }
+
+      .settings-button.secondary:hover {
+        background-color: #334155;
+      }
+
+      .main-container {
+        display: flex;
+        width: 100%;
+        height: 100vh;
+      }
+
+      .settings-sidebar {
+        width: 250px;
+        background-color: #1e293b;
+        height: 100vh;
+        overflow-y: auto;
+        padding: 1rem;
+        border-right: 1px solid #334155;
+      }
+
+      .chat-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="main-container">
+      <!-- Settings Sidebar - Always visible -->
+      <div class="settings-sidebar">
+        <div class="text-lg font-medium mb-4 pb-2 border-b border-gray-700">
+          LLM Settings
+        </div>
+
+        <div class="mb-5">
+          <label class="block mb-1 text-sm font-medium">API Key</label>
+          <input
+            id="apiKey"
+            type="password"
+            class="w-full p-2 bg-dark-400 border border-gray-700 rounded text-sm"
+            placeholder="API Key for OpenAI/Groq"
+          />
+        </div>
+
+        <div class="mb-5">
+          <label class="block mb-1 text-sm font-medium">Base URL</label>
+          <input
+            id="baseUrl"
+            type="text"
+            class="w-full p-2 bg-dark-400 border border-gray-700 rounded text-sm"
+            placeholder="https://api.openai.com/v1"
+          />
+        </div>
+
+        <div class="mb-5">
+          <label class="block mb-1 text-sm font-medium">Model Name</label>
+          <input
+            id="modelName"
+            type="text"
+            class="w-full p-2 bg-dark-400 border border-gray-700 rounded text-sm"
+            placeholder="gpt-4-turbo"
+          />
+        </div>
+
+        <div class="mb-5">
+          <label class="block mb-1 text-sm font-medium">Host Model Type</label>
+          <select
+            id="hostModel"
+            class="w-full p-2 bg-dark-400 border border-gray-700 rounded text-sm"
+          >
+            <option value="openai">OpenAI</option>
+            <option value="groq">Groq</option>
+          </select>
+        </div>
+
+        <div class="mb-5">
+          <label class="block mb-1 text-sm font-medium">MCP API URL</label>
+          <input
+            id="mcpUrl"
+            type="text"
+            class="w-full p-2 bg-dark-400 border border-gray-700 rounded text-sm"
+            placeholder="http://localhost:8001"
+          />
+        </div>
+
+        <div class="mb-5">
+          <button
+            id="applySettings"
+            class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
+          >
+            Apply & Reconnect
+          </button>
+        </div>
+
+        <div class="mb-5">
+          <button
+            id="resetSettings"
+            class="w-full p-2 bg-gray-600 hover:bg-gray-700 text-white rounded font-medium"
+          >
+            Reset to Default
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Container -->
+      <div class="chat-wrapper" x-data="chatApp()" x-init="init()" x-cloak>
+        <!-- Header -->
+        <div
+          class="py-3 px-4 border-b border-gray-700 flex items-center justify-between"
+        >
+          <div class="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="text-blue-400 mr-2"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+            <h1 class="text-lg font-medium">MCP Assistant</h1>
+          </div>
+
+          <div class="flex items-center text-sm">
+            <template x-if="isConnected && !isStreaming">
+              <div class="flex items-center">
+                <div class="status-dot status-connected"></div>
+                <span>Connected</span>
+              </div>
+            </template>
+            <template x-if="!isConnected">
+              <div class="flex items-center">
+                <div class="status-dot status-disconnected"></div>
+                <span>Disconnected</span>
+              </div>
+            </template>
+            <template x-if="isStreaming">
+              <div class="flex items-center">
+                <div class="status-dot status-processing"></div>
+                <span>Processing...</span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Messages Area -->
+        <div
+          x-ref="messageContainer"
+          class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-3"
+        >
+          <!-- Conversations Display -->
+          <template
+            x-for="conversation in conversations"
+            :key="conversation.id"
+          >
+            <div class="mb-8">
+              <!-- User Message -->
+              <div
+                x-show="conversation.userMessage"
+                class="flex justify-end mb-2"
+              >
+                <div
+                  class="message-bubble message-user"
+                  role="log"
+                  aria-label="Your message"
+                >
+                  <span x-text="conversation.userMessage"></span>
+                </div>
+              </div>
+
+              <!-- Assistant Response -->
+              <div
+                x-show="conversation.assistantResponse || conversation.tools.length > 0"
+                class="flex justify-start"
+              >
+                <div
+                  class="message-bubble message-assistant"
+                  role="log"
+                  aria-label="Assistant response"
+                >
+                  <!-- Main LLM Response Text with Markdown -->
+                  <div
+                    x-show="conversation.assistantResponse"
+                    class="markdown-content"
+                    x-html="renderMarkdown(conversation.assistantResponse)"
+                  ></div>
+
+                  <!-- Tool Execution Display -->
+                  <div
+                    x-show="conversation.tools.length > 0 || conversation.rawToolCall"
+                    class="tool-section"
+                  >
+                    <div
+                      class="text-xs text-gray-400 uppercase font-medium mb-2"
+                    >
+                      Tools Used
+                    </div>
+
+                    <!-- Raw tool call (if present) -->
+                    <details
+                      x-show="conversation.rawToolCall"
+                      class="tool-accordion mb-2"
+                    >
+                      <summary class="text-xs text-yellow-500">
+                        <div class="flex items-center">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="mr-2"
+                          >
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                          </svg>
+                          <span>Raw Tool Call</span>
+                        </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </summary>
+                      <div class="tool-accordion-content">
+                        <pre><code class="language-xml" x-text="conversation.rawToolCall"></code></pre>
+                      </div>
+                    </details>
+
+                    <!-- Tool calls and results -->
+                    <template
+                      x-for="(tool, toolIdx) in conversation.tools"
+                      :key="toolIdx"
+                    >
+                      <details class="tool-accordion mb-2">
+                        <summary
+                          class="text-xs"
+                          :class="getToolSummaryClass(tool)"
+                        >
+                          <div class="flex items-center">
+                            <!-- Tool call icon -->
+                            <svg
+                              x-show="tool.type === 'tool_call'"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="text-blue-400 mr-2"
+                            >
+                              <path
+                                d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"
+                              ></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+
+                            <!-- Success result icon -->
+                            <svg
+                              x-show="tool.type === 'tool_result' && tool.data.status === 'success'"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="text-green-400 mr-2"
+                            >
+                              <path
+                                d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
+                              ></path>
+                              <polyline
+                                points="22 4 12 14.01 9 11.01"
+                              ></polyline>
+                            </svg>
+
+                            <!-- Error result icon -->
+                            <svg
+                              x-show="tool.type === 'tool_result' && tool.data.status === 'error'"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="text-red-400 mr-2"
+                            >
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="12" y1="8" x2="12" y2="12"></line>
+                              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+
+                            <span x-text="getToolTitle(tool)"></span>
+                          </div>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </summary>
+                        <div class="tool-accordion-content">
+                          <pre><code :class="getToolLanguage(tool)" x-text="getToolContent(tool)"></code></pre>
+                        </div>
+                      </details>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-700">
+          <form @submit.prevent="sendMessage()" class="flex space-x-2 relative">
+            <div class="relative flex-1">
+              <input
+                type="text"
+                x-model="newMessage"
+                placeholder="Type your message..."
+                class="chat-input w-full pr-10"
+                :class="{'opacity-60': isStreaming}"
+                :disabled="!isConnected || isStreaming"
+                aria-label="Message input"
+              />
+              <!-- Loading spinner that shows when streaming -->
+              <div
+                x-show="isStreaming"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2"
+              >
+                <svg
+                  class="animate-spin h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="send-button transition-opacity duration-200"
+              :class="{'opacity-40 cursor-not-allowed': !isConnected || !newMessage.trim() || isStreaming}"
+              :disabled="!isConnected || !newMessage.trim() || isStreaming"
+              aria-label="Send message"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="mr-1"
+              >
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              <span x-text="isStreaming ? 'Waiting...' : 'Send'"></span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function chatApp() {
+        return {
+          connectionId: null,
+          websocket: null,
+          conversations: [],
+          currentConversation: null,
+          newMessage: "",
+          isConnected: false,
+          isStreaming: false,
+          llmBuffer: "",
+          isConnecting: false,
+
+          // Add settings object
+          settings: {
+            apiKey: localStorage.getItem("mcp_api_key") || "",
+            baseUrl: localStorage.getItem("mcp_base_url") || "",
+            model: localStorage.getItem("mcp_model") || "",
+            hostModel: localStorage.getItem("mcp_host_model") || "openai",
+            mcpUrl: localStorage.getItem("mcp_url") || "",
+          },
+
+          init() {
+            this.connectionId = uuid.v4();
+            this.connectWebSocket();
+
+            marked.setOptions({
+              breaks: true,
+              gfm: true,
+              headerIds: false,
+            });
+
+            this.$watch("conversations", () => {
+              this.$nextTick(() => {
+                const container = this.$refs.messageContainer;
+                container.scrollTop = container.scrollHeight;
+                hljs.highlightAll();
+              });
+            });
+
+            // Listen for settings changes from vanilla JS
+            document.addEventListener("settings-changed", (event) => {
+              console.log("Settings changed event received", event.detail);
+              this.settings = event.detail;
+              this.isConnected = false;
+              this.isConnecting = false;
+              this.connectWebSocket();
+              this.addSystemMessage("Settings applied. Reconnecting...");
+            });
+
+            console.log("Alpine.js initialized with settings", this.settings);
+          },
+
+          connectWebSocket() {
+            if (this.isConnecting) return;
+            this.isConnecting = true;
+
+            if (this.websocket) {
+              this.websocket.onclose = null;
+              this.websocket.onmessage = null;
+              this.websocket.onerror = null;
+
+              if (
+                this.websocket.readyState === WebSocket.OPEN ||
+                this.websocket.readyState === WebSocket.CONNECTING
+              ) {
+                try {
+                  this.websocket.close();
+                } catch (e) {
+                  console.error("Error closing existing websocket:", e);
+                }
+              }
+            }
+
+            // Build WebSocket URL with query parameters
+            let wsUrl = `ws://${window.location.hostname}:7899/ws/${this.connectionId}`;
+            const params = new URLSearchParams();
+
+            // Only add parameters that have values
+            if (this.settings.apiKey)
+              params.append("api_key", this.settings.apiKey);
+            if (this.settings.baseUrl)
+              params.append("base_url", this.settings.baseUrl);
+            if (this.settings.model)
+              params.append("model", this.settings.model);
+            if (this.settings.hostModel)
+              params.append("host_model", this.settings.hostModel);
+            if (this.settings.mcpUrl)
+              params.append("mcp_url", this.settings.mcpUrl);
+
+            // Append query parameters if any exist
+            const queryString = params.toString();
+            if (queryString) {
+              wsUrl += `?${queryString}`;
+            }
+
+            this.addSystemMessage("Connecting...");
+            this.websocket = new WebSocket(wsUrl);
+
+            this.websocket.onopen = () => {
+              this.isConnected = true;
+              this.isStreaming = false;
+              this.isConnecting = false;
+              this.addSystemMessage("Connected");
+
+              // Add this: Set a brief "settling period" after connection
+              setTimeout(() => {
+                // Ensure any lingering streaming state is reset
+                this.isStreaming = false;
+              }, 1000);
+            };
+
+            this.websocket.onmessage = (event) => {
+              const rawData = event.data;
+
+              let tag = null;
+              let payload = null;
+              const tagMatch = rawData.match(/^\[([A-Z_]+)\](.*)/s);
+
+              if (tagMatch) {
+                tag = tagMatch[1];
+                payload = tagMatch[2];
+              } else if (rawData === "[STREAM_END]") {
+                tag = "STREAM_END";
+                payload = "";
+              } else {
+                this.addSystemMessage(`Unrecognized format: ${rawData}`);
+                return;
+              }
+
+              // Ensure we have a current conversation to work with
+              if (!this.currentConversation && tag !== "SYSTEM") {
+                this.currentConversation = this.createConversation();
+                this.conversations.push(this.currentConversation);
+              }
+
+              // Handle the different tag types
+              switch (tag) {
+                case "LLM":
+                  this.isStreaming = true;
+                  this.llmBuffer += payload;
+                  if (this.currentConversation) {
+                    this.currentConversation.assistantResponse = this.llmBuffer;
+                  }
+                  break;
+
+                case "RAW_TOOL_CALL":
+                  this.isStreaming = true;
+                  // Store the raw tool call in the current conversation
+                  if (this.currentConversation) {
+                    this.currentConversation.rawToolCall = payload;
+                  }
+                  break;
+
+                case "TOOL_CALL":
+                case "TOOL_RESULT":
+                  this.isStreaming = true;
+                  try {
+                    const jsonData = JSON.parse(payload);
+                    if (this.currentConversation) {
+                      this.currentConversation.tools.push({
+                        id: this.generateId(),
+                        type: tag.toLowerCase(),
+                        data: jsonData,
+                      });
+                    }
+                  } catch (e) {
+                    this.addSystemMessage(`Failed to parse ${tag} data`);
+                  }
+                  break;
+
+                case "SYSTEM":
+                  // Add to system messages of current conversation or create a general one
+                  if (this.currentConversation) {
+                    this.currentConversation.systemMessages.push(payload);
+                  } else {
+                    this.addSystemMessage(payload);
+                  }
+                  break;
+
+                case "ERROR":
+                  if (this.currentConversation) {
+                    this.currentConversation.systemMessages.push(
+                      `Error: ${payload}`
+                    );
+                  } else {
+                    this.addSystemMessage(`Error: ${payload}`);
+                  }
+                  this.isStreaming = false;
+                  break;
+
+                case "STREAM_END":
+                  this.isStreaming = false;
+                  this.llmBuffer = "";
+                  this.currentConversation = null; // Reset for next conversation
+                  break;
+
+                default:
+                  this.addSystemMessage(`Unknown message type: ${tag}`);
+              }
+
+              this.$nextTick(() => hljs.highlightAll());
+            };
+
+            this.websocket.onerror = () => {
+              this.addSystemMessage("Connection error");
+              this.isConnected = false;
+              this.isStreaming = false;
+              this.isConnecting = false;
+            };
+
+            this.websocket.onclose = () => {
+              this.isConnected = false;
+
+              if (!this.isConnecting) {
+                this.addSystemMessage("Disconnected. Reconnecting...");
+                this.isStreaming = false;
+
+                setTimeout(() => {
+                  this.isConnecting = false;
+                  this.connectWebSocket();
+                }, 3000);
+              }
+            };
+          },
+
+          createConversation() {
+            return {
+              id: this.generateId(),
+              userMessage: "",
+              assistantResponse: "",
+              systemMessages: [],
+              rawToolCall: null,
+              tools: [],
+            };
+          },
+
+          sendMessage() {
+            if (
+              !this.isConnected ||
+              !this.newMessage.trim() ||
+              this.isStreaming
+            )
+              return;
+
+            // Create a new conversation
+            const conversation = this.createConversation();
+            conversation.userMessage = this.newMessage.trim();
+
+            // Add to conversations array
+            this.conversations.push(conversation);
+            this.currentConversation = conversation;
+
+            // Send to websocket
+            this.websocket.send(this.newMessage.trim());
+            this.newMessage = "";
+            this.isStreaming = true;
+            this.llmBuffer = "";
+          },
+
+          addSystemMessage(message) {
+            // For standalone system messages (not part of a conversation)
+            // Check if we already have this exact system message to prevent duplicates
+            const systemConversation = this.conversations.find(
+              (c) =>
+                !c.userMessage &&
+                !c.assistantResponse &&
+                c.systemMessages.length === 1 &&
+                c.systemMessages[0] === message
+            );
+
+            if (!systemConversation) {
+              const newSysConversation = this.createConversation();
+              newSysConversation.systemMessages.push(message);
+              this.conversations.push(newSysConversation);
+            }
+          },
+
+          generateId() {
+            return Math.random().toString(36).substring(2, 10);
+          },
+
+          renderMarkdown(text) {
+            try {
+              return marked.parse(text);
+            } catch (e) {
+              return text;
+            }
+          },
+
+          getToolTitle(tool) {
+            if (tool.type === "tool_call") {
+              return `Tool: ${tool.data.name}`;
+            } else if (tool.type === "tool_result") {
+              return `Result: ${tool.data.name}`;
+            }
+            return tool.type;
+          },
+
+          getToolContent(tool) {
+            if (tool.type === "tool_call") {
+              return JSON.stringify(tool.data.arguments, null, 2);
+            } else if (tool.type === "tool_result") {
+              return JSON.stringify(tool.data.data, null, 2);
+            }
+            return JSON.stringify(tool.data, null, 2);
+          },
+
+          getToolLanguage(tool) {
+            if (tool.type === "raw_tool_call") {
+              return "language-xml";
+            }
+            return "language-json";
+          },
+
+          getToolSummaryClass(tool) {
+            if (tool.type === "tool_call") {
+              return "text-blue-400";
+            } else if (
+              tool.type === "tool_result" &&
+              tool.data.status === "success"
+            ) {
+              return "text-green-400";
+            } else if (
+              tool.type === "tool_result" &&
+              tool.data.status === "error"
+            ) {
+              return "text-red-400";
+            }
+            return "";
+          },
+
+          isTechnicalMessage(message) {
+            // Filter out technical messages that don't need to be shown
+            const technicalMessages = [
+              "Tool call detected",
+              "Processing",
+              "Executing tools",
+              "Tool execution finished",
+              "Asking LLM to continue",
+              "Connecting",
+              "Connected",
+            ];
+
+            return technicalMessages.some((tech) => message.includes(tech));
+          },
+        };
+      }
+    </script>
+
+    <!-- Modify the vanilla JS script to remove the toggle functionality -->
+    <script>
+      // Wait for DOM to be fully loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        // Get references to the settings elements
+        const applySettings = document.getElementById("applySettings");
+        const resetSettings = document.getElementById("resetSettings");
+
+        // Form elements
+        const apiKeyInput = document.getElementById("apiKey");
+        const baseUrlInput = document.getElementById("baseUrl");
+        const modelNameInput = document.getElementById("modelName");
+        const hostModelSelect = document.getElementById("hostModel");
+        const mcpUrlInput = document.getElementById("mcpUrl");
+
+        // Load settings from localStorage
+        function loadSettings() {
+          apiKeyInput.value = localStorage.getItem("mcp_api_key") || "";
+          baseUrlInput.value = localStorage.getItem("mcp_base_url") || "";
+          modelNameInput.value = localStorage.getItem("mcp_model") || "";
+          hostModelSelect.value =
+            localStorage.getItem("mcp_host_model") || "openai";
+          mcpUrlInput.value = localStorage.getItem("mcp_url") || "";
+        }
+
+        // Save settings to localStorage
+        function saveSettings() {
+          localStorage.setItem("mcp_api_key", apiKeyInput.value);
+          localStorage.setItem("mcp_base_url", baseUrlInput.value);
+          localStorage.setItem("mcp_model", modelNameInput.value);
+          localStorage.setItem("mcp_host_model", hostModelSelect.value);
+          localStorage.setItem("mcp_url", mcpUrlInput.value);
+        }
+
+        // Reset settings
+        function resetSettingsToDefault() {
+          localStorage.removeItem("mcp_api_key");
+          localStorage.removeItem("mcp_base_url");
+          localStorage.removeItem("mcp_model");
+          localStorage.removeItem("mcp_host_model");
+          localStorage.removeItem("mcp_url");
+
+          // Clear form inputs
+          apiKeyInput.value = "";
+          baseUrlInput.value = "";
+          modelNameInput.value = "";
+          hostModelSelect.value = "openai";
+          mcpUrlInput.value = "";
+        }
+
+        // Event listeners
+        applySettings.addEventListener("click", function () {
+          saveSettings();
+
+          // Signal Alpine.js to reconnect (using a custom event)
+          const reconnectEvent = new CustomEvent("settings-changed", {
+            detail: {
+              apiKey: apiKeyInput.value,
+              baseUrl: baseUrlInput.value,
+              model: modelNameInput.value,
+              hostModel: hostModelSelect.value,
+              mcpUrl: mcpUrlInput.value,
+            },
+          });
+          document.dispatchEvent(reconnectEvent);
+        });
+
+        resetSettings.addEventListener("click", resetSettingsToDefault);
+
+        // Initialize
+        loadSettings();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  file_management:
+    build: ./file_management
+    container_name: file_management_server
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./shared_data:/data
+    environment:
+      - PORT=8003
+
+  version_control:
+    build: ./version_control
+    container_name: version_control_server
+    ports:
+      - "8002:8002"
+      - "8080-8090:8080-8090"
+    volumes:
+      - ./shared_data:/repo
+    environment:
+      - PORT=8002
+
+volumes:
+  shared_data:
+    driver: local

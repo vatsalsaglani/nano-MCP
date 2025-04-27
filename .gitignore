@@ -1,0 +1,6 @@
+.cursor
+src/client/logs
+src/*/__pycache__/
+src/servers/shared_data/
+.DS_Store
+src/llm/providers/__pycache__
