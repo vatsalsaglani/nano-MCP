@@ -1,0 +1,14 @@
+uvicorn==0.34.0
+fastapi==0.115.12
+websockets==15.0.1
+aiofiles==24.1.0
+httpx==0.28.1
+python-dotenv==1.1.0
+pydantic==2.11.2
+rich==14.0.0
+openai==1.70.0
+uvicorn==0.34.0
+httpx==0.28.1
+json_repair==0.41.1
+tqdm==4.67.1
+websockets==15.0.1

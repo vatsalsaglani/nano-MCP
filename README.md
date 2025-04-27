@@ -32,6 +32,14 @@ HOST_MODEL=openai
 MCP_CLIENT_URL=http://localhost:8001
 ```
 
+### Install Requirements
+
+```
+# activate your environment
+cd src/
+pip install -r requirements.txt
+```
+
 ### CLI Interface
 
 Run the CLI interface:
