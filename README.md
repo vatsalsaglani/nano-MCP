@@ -20,6 +20,41 @@ This project follows the Model Context Protocol (MCP) architectural pattern:
 
 ## Usage
 
+## Docker Setup to run MCP Servers
+
+Create a `shared_data` folder in the `servers` folder.
+
+The project uses Docker Compose to orchestrate the MCP servers:
+
+```bash
+cd src/servers/
+docker-compose up -d
+```
+
+This will start:
+- File Management Server on port 8000
+- Version Control Server on port 8001
+
+## MCP Client Hub
+
+### Install Requirements
+
+```
+# activate your environment
+cd src/
+pip install -r requirements.txt
+```
+
+### Start the MCP Client Hub
+
+```bash
+cd src/client
+export MCP_SERVER_URLS="http://localhost:8002,http://localhost:8003"
+python nano_mcp_client.py
+```
+
+## MCP CLI or UI
+
 ### Environment Variables
 
 Configure the following environment variables:
@@ -32,13 +67,6 @@ HOST_MODEL=openai
 MCP_CLIENT_URL=http://localhost:8001
 ```
 
-### Install Requirements
-
-```
-# activate your environment
-cd src/
-pip install -r requirements.txt
-```
 
 ### CLI Interface
 
@@ -66,19 +94,6 @@ python host.py
 
 The web interface will be available at http://localhost:7899/
 
-## Docker Setup
-
-Create a `shared_data` folder in the `servers` folder.
-
-The project uses Docker Compose to orchestrate the MCP servers:
-
-```bash
-docker-compose up -d
-```
-
-This will start:
-- File Management Server on port 8000
-- Version Control Server on port 8001
 
 ## Protocol Details
 
@@ -90,8 +105,8 @@ The Model Context Protocol (MCP) allows LLMs to:
 4. Continue execution in an autonomous loop
 
 Each MCP server exposes two main endpoints:
-- `GET /mcp/tools`: Lists available tools with schemas
-- `POST /mcp/call`: Executes tools based on name and input
+- `GET /list/tools`: Lists available tools with schemas
+- `POST /execute/call`: Executes tools based on name and input
 
 ## Development
 
